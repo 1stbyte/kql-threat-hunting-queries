@@ -1,0 +1,43 @@
+// Detection: EDR Killer Service Tampering Detection
+// Data Source: Microsoft Defender Advanced Hunting (DeviceProcessEvents)
+// MITRE Technique: T1562.001 — Impair Defenses: Disable Security Tools
+// Tactic: Defense Evasion
+// Description:
+// Detects attempts to stop or disable endpoint protection services using built-in Windows
+// administration utilities frequently abused by ransomware operators during early defense
+// evasion preparation stages prior to payload execution.
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where InitiatingProcessFileName in~ (
+"powershell.exe","cmd.exe","wscript.exe",
+"cscript.exe","mshta.exe","rundll32.exe",
+"regsvr32.exe","wmic.exe"
+)
+| where FileName in~ (
+"taskkill.exe","sc.exe","net.exe",
+"wmic.exe","reg.exe","bcdedit.exe","powershell.exe"
+)
+| where ProcessCommandLine has_any (
+"stop","disable","delete","terminate","kill",
+"Add-MpPreference","Set-MpPreference",
+"DisableRealtimeMonitoring","ExclusionPath","ExclusionExtension"
+)
+| where ProcessCommandLine has_any (
+"defender","edr","security","sense",
+"crowdstrike","carbonblack","sentinel",
+"windefend","msmpeng","sophos","trendmicro",
+"cylance","sentinelone","elastic","falcon"
+)
+| extend TamperingRisk = case(
+ProcessCommandLine has "stop","High",
+ProcessCommandLine has "disable","High",
+ProcessCommandLine has "delete","High",
+ProcessCommandLine has "terminate","High",
+ProcessCommandLine has "kill","High",
+"Review"
+)
+| project Timestamp, DeviceName, AccountName,
+InitiatingProcessFileName, FileName,
+FolderPath, TamperingRisk, ProcessCommandLine
+| order by Timestamp desc
