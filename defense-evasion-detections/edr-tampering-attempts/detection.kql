@@ -1,0 +1,54 @@
+// Detection: EDR Tampering Attempts via Service Termination Commands
+// Data Source: Microsoft Defender Advanced Hunting (DeviceProcessEvents)
+// MITRE Technique: T1562.001 — Impair Defenses
+// Description:
+// Detects suspicious attempts to stop, disable, delete, or terminate endpoint protection services
+// commonly targeted by attackers prior to lateral movement or ransomware deployment.
+
+// Optional tuning: exclude benign service status checks
+// Example: "sc query WinDefend"
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+
+| where FileName in~ ("sc.exe","taskkill.exe","net.exe","powershell.exe","cmd.exe")
+
+// Optional tuning: exclude common benign query operations
+| where ProcessCommandLine !contains "status"
+
+| where ProcessCommandLine has_any (
+    "WinDefend",
+    "Sense",
+    "MsMpEng",
+    "SecurityHealthService",
+    "WdNisSvc",
+    "WdFilter",
+    "WdBoot",
+    "WdNisDrv",
+    "CrowdStrike",
+    "CSFalconService",
+    "CarbonBlack",
+    "CbDefense",
+    "SentinelAgent",
+    "SentinelOne",
+    "Sophos",
+    "Symantec",
+    "TrendMicro",
+    "Defender"
+)
+
+| where ProcessCommandLine has_any ("stop","disable","delete","terminate","kill")
+
+// Optional tuning: focus on suspicious interpreter-based execution chains
+// Uncomment if environment produces high noise
+// | where InitiatingProcessFileName in~ ("powershell.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe")
+
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    ProcessCommandLine,
+    InitiatingProcessFileName
+
+| order by Timestamp desc
