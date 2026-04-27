@@ -1,0 +1,26 @@
+// Detection: MFA Fatigue Pattern Detection
+// Data Source: Microsoft Sentinel (SecurityEvent)
+// MITRE Technique: T1110 — Brute Force
+// Related Technique: T1078 — Valid Accounts
+// Tactic: Credential Access
+// Description:
+// Detects multiple failed authentication attempts followed by a successful login
+// which may indicate password spraying or MFA fatigue-style authentication abuse.
+
+SecurityEvent
+| where TimeGenerated > ago(7d)
+| where EventID in (4624, 4625)
+| extend LogonResult = case(
+    EventID == 4625, "Failed Logon",
+    EventID == 4624, "Successful Logon",
+    "Other"
+)
+| summarize
+    FailedAttempts = countif(EventID == 4625),
+    SuccessfulLogons = countif(EventID == 4624),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by Account, IpAddress, Computer
+| where FailedAttempts >= 5 and SuccessfulLogons >= 1
+| project FirstSeen, LastSeen, Account, IpAddress, Computer, FailedAttempts, SuccessfulLogons
+| order by FailedAttempts desc
