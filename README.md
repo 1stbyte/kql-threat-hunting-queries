@@ -1,6 +1,6 @@
 # KQL Threat Hunting Queries
 
-This repository contains Microsoft Defender Advanced Hunting KQL queries developed for behavioral endpoint threat detection, identity investigations, and SOC threat hunting workflows.
+This repository contains Microsoft Defender Advanced Hunting KQL (Kusto) queries developed for behavioral endpoint threat detection, identity investigations, and SOC threat hunting workflows.
 
 These detections focus on identifying attacker tradecraft including defense evasion, suspicious process execution, identity misuse, and Living-off-the-Land binary (LOLBins) abuse.
 
