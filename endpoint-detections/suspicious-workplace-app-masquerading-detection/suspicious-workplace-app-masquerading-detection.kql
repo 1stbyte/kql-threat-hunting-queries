@@ -1,0 +1,42 @@
+// Detection: Suspicious Workplace App Masquerading Detection
+// Data Source: Microsoft Defender Advanced Hunting (DeviceProcessEvents)
+// MITRE Technique: T1036 — Masquerading
+// Tactic: Defense Evasion
+// Description:
+// Detects workplace application names executing from non-standard or user-writable paths,
+// which may indicate masquerading, signed malware abuse, or unauthorized RMM deployment.
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where FileName in~ (
+    "msteams.exe",
+    "teams.exe",
+    "slack.exe",
+    "zoom.exe",
+    "webex.exe",
+    "onedrive.exe",
+    "googledrivefs.exe",
+    "dropbox.exe",
+    "box.exe",
+    "teamviewer.exe",
+    "screenconnect.clientservice.exe",
+    "connectwisecontrol.client.exe"
+)
+| where FolderPath !startswith "C:\\Program Files"
+| where FolderPath !startswith "C:\\Program Files (x86)"
+| where FolderPath !startswith "C:\\Windows"
+| extend PathRisk = case(
+    FolderPath has_any ("\\AppData\\", "\\Temp\\", "\\Downloads\\", "\\Public\\", "\\Users\\"), "High - User-Writable Path",
+    FolderPath has_any ("\\ProgramData\\", "\\Recycle.Bin\\"), "Medium - Suspicious Alternate Path",
+    "Review"
+)
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    FolderPath,
+    PathRisk,
+    ProcessCommandLine,
+    InitiatingProcessFileName
+| order by Timestamp desc
