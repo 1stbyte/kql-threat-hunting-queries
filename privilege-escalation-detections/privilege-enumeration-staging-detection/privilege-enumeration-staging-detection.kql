@@ -1,0 +1,33 @@
+// Detection: Privilege Enumeration and Suspicious Staging Detection
+// Data Source: Microsoft Defender Advanced Hunting (DeviceProcessEvents)
+// MITRE Technique: T1068 — Exploitation for Privilege Escalation (Preparation Phase)
+// Tactic: Privilege Escalation
+// Description:
+// Detects privilege enumeration commands and executable staging behavior
+// from user-writable directories often observed prior to privilege escalation attempts.
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where ProcessCommandLine has_any ("whoami /priv", "whoami.exe /priv")
+    or FolderPath has_any (
+        @"\Downloads\",
+        @"\Pictures\",
+        @"\AppData\",
+        @"C:\Users\Public\",
+        @"C:\ProgramData\"
+    )
+| extend SuspiciousParent = case(
+    InitiatingProcessFileName in~ ("powershell.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe"),
+    "Suspicious Script Parent",
+    "Review"
+)
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    FolderPath,
+    SuspiciousParent,
+    ProcessCommandLine,
+    InitiatingProcessFileName
+| order by Timestamp desc
