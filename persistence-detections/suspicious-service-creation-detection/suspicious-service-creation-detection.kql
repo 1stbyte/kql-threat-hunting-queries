@@ -1,0 +1,40 @@
+// Detection: Suspicious Service Creation Detection
+// Data Source: Windows SecurityEvent (Event ID 4697)
+// MITRE Technique: T1543.003 — Create or Modify System Process: Windows Service
+// Tactic: Persistence
+// Description:
+// Detects new Windows service creation and highlights suspicious service paths commonly abused for persistence.
+
+SecurityEvent
+| where TimeGenerated > ago(7d)
+| where EventID == 4697
+| extend SuspiciousPath = case(
+    ServiceFileName has_any (
+        "\\Users\\",
+        "\\AppData\\",
+        "\\Temp\\",
+        "\\ProgramData\\",
+        "\\Public\\",
+        "\\Downloads\\"
+    ), "Suspicious User-Writable Path",
+    ServiceFileName has_any (
+        "powershell",
+        "cmd.exe",
+        "wscript",
+        "cscript",
+        "mshta",
+        "rundll32",
+        "regsvr32"
+    ), "Suspicious LOLBin or Script Interpreter",
+    "Review"
+)
+| project
+    TimeGenerated,
+    Computer,
+    Account,
+    ServiceName,
+    ServiceFileName,
+    ServiceType,
+    StartType,
+    SuspiciousPath
+| order by TimeGenerated desc
